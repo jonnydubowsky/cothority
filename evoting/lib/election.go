@@ -50,13 +50,13 @@ type Election struct {
 	End        int64             // End (termination) datetime as unix timestamp.
 
 	Theme  string // Theme denotes the CSS class for selecting background color of card title.
-	Footer footer // Footer denotes the Election footer
+	Footer Footer // Footer denotes the Election footer
 
 	Voted skipchain.SkipBlockID // Voted denotes if a user has already cast a ballot for this election.
 }
 
 // footer denotes the fields for the election footer
-type footer struct {
+type Footer struct {
 	Text         string // Text is for storing footer content.
 	ContactTitle string // ContactTitle stores the title of the Contact person.
 	ContactPhone string // ContactPhone stores the phone number of the Contact person.

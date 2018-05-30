@@ -9,9 +9,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dedis/cothority"
 	"github.com/dedis/cothority/evoting"
+	"github.com/dedis/cothority/evoting/lib"
 	"github.com/dedis/cothority/skipchain"
 	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/util/key"
@@ -28,13 +30,16 @@ var (
 	argUser   = flag.Int("user", 0, "The SCIPER of an existing admin of this chain")
 	argSig    = flag.String("sig", "", "A signature proving that you can login to Tequila with the given SCIPER.")
 	argShow   = flag.Bool("show", false, "Show the current Master config")
+	argElec   = flag.String("election", "", "Load an election file.")
 )
+
+var days = 24 * time.Hour
 
 func main() {
 	flag.Parse()
 
 	if *argRoster == "" {
-		log.Fatal("Roster argument (-roster) is required for create, update, or show.")
+		log.Fatal("Roster argument (-roster) is required.")
 	}
 	roster, err := parseRoster(*argRoster)
 	if err != nil {
@@ -58,6 +63,82 @@ func main() {
 		fmt.Printf("    Key: %v\n", m.Key)
 		return
 	}
+
+	if *argElec != "" {
+		elec := &lib.Election{
+			Name: map[string]string{
+				"en": "Jeff's big election.",
+				"fr": "Le scrutin geant de Jeff",
+			},
+			Creator: 289938,
+			// the list of voters
+			Users:      []uint32{0, 1, 2, 289938},
+			Candidates: []uint32{289938},
+			MaxChoices: 1,
+			Subtitle: map[string]string{
+				"en": "Vote here now!",
+			},
+			MoreInfo: "",
+			Start:    time.Now().Unix(),
+			End:      time.Now().Add(7 * days).Unix(),
+			// Theme is one of:
+			// { name: 'EPFL', class: 'epfl' },
+			// { name: 'ENAC', class: 'enac' },
+			// { name: 'SB', class: 'sb' },
+			// { name: 'STI', class: 'sti' },
+			// { name: 'IC', class: 'ic' },
+			// { name: 'SV', class: 'sv' },
+			// { name: 'CDM', class: 'cdm' },
+			// { name: 'CDH', class: 'cdh' },
+			// { name: 'INTER', class: 'inter' },
+			// { name: 'Associations', class: 'assoc' }
+			Theme:  "epfl",
+			Footer: lib.Footer{},
+		}
+		/*
+			_, err := toml.DecodeFile(*argElec, elec)
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Print(elec)
+			return
+		*/
+
+		if *argID == "" {
+			log.Fatal("-id required when opening elections")
+		}
+		id, err := hex.DecodeString(*argID)
+		if err != nil {
+			log.Fatal("id decode", err)
+		}
+		request := &evoting.Open{
+			ID:       id,
+			Election: elec,
+		}
+
+		if *argSig == "" {
+			log.Fatal("-sig required when opening elections")
+		}
+		sig, err := hex.DecodeString(*argSig)
+		if err != nil {
+			log.Fatal("sig decode", err)
+		}
+		if *argUser == 0 {
+			log.Fatal("-user required when opening elections")
+		}
+		var u = uint32(*argUser)
+		request.User = u
+		request.Signature = sig
+
+		reply := &evoting.OpenReply{}
+		client := onet.NewClient(cothority.Suite, evoting.ServiceName)
+		if err = client.SendProtobuf(roster.List[0], request, reply); err != nil {
+			log.Fatal("open election request: ", err)
+		}
+		return
+	}
+
+	log.Print("Trying to create a new master chain.")
 
 	if *argAdmins == "" {
 		log.Fatal("Admin list (-admins) must have at least one id.")
