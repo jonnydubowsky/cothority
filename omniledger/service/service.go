@@ -148,7 +148,6 @@ func (s *Service) CreateGenesisBlock(req *CreateGenesisBlock) (
 	if err != nil {
 		return nil, err
 	}
-	s.save()
 
 	s.workersMu.Lock()
 	s.queueWorkers[string(sb.SkipChainID())] = s.createQueueWorker(sb.SkipChainID(), req.BlockInterval)
@@ -212,6 +211,7 @@ func (s *Service) SetPropagationTimeout(p time.Duration) {
 	s.storage.Lock()
 	s.storage.PropTimeout = p
 	s.storage.Unlock()
+	s.save()
 }
 
 func toObjectID(dID darc.ID) ObjectID {
@@ -399,6 +399,13 @@ func (s *Service) updateCollection(msg network.Message) {
 	}
 }
 
+// GetCollectionView returns a read-only accessor to the collection
+// for the given skipchain.
+func (s *Service) GetCollectionView(id skipchain.SkipBlockID) CollectionView {
+	cdb := s.getCollection(id)
+	return &roCollection{c: cdb.coll}
+}
+
 func (s *Service) getCollection(id skipchain.SkipBlockID) *collectionDB {
 	idStr := fmt.Sprintf("%x", id)
 	col := s.collectionDB[idStr]
@@ -466,7 +473,7 @@ func (s *Service) createQueueWorker(scID skipchain.SkipBlockID, interval time.Du
 				ts = append(ts, t)
 				log.Lvlf2("%x: Stored transaction. Next block length: %v, New Tx: %+v", scID, len(ts), t)
 			case <-to:
-				log.Lvlf2("%x: New epoch and transaction-length: %d", scID, len(ts))
+				log.Lvlf4("%x: New epoch and transaction-length: %d", scID, len(ts))
 				if len(ts) > 0 {
 					sb, err := s.db().GetLatest(s.db().GetByID(scID))
 					if err != nil {
@@ -676,7 +683,7 @@ func (s *Service) isOurChain(gen skipchain.SkipBlockID) bool {
 	return false
 }
 
-// saves all skipblocks.
+// saves this service's config information
 func (s *Service) save() {
 	s.storage.Lock()
 	defer s.storage.Unlock()
