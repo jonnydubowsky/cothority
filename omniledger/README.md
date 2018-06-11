@@ -125,6 +125,6 @@ evolving description of who is allowed or not to access a certain resource.
 Some documents that might get evolved later:
 
 - [Child Transactions](ChildTransactions.md) describes how we can implement
-a leader fetching new transactions from children
-- [Contract Examples](ContractExamples.md) a bare list of some examples of what
-kind of contracts we think of implementing
+a leader fetching new transactions from children.
+- [Contracts](Contracts.md) gives a short overview how contracts work and
+some examples how to use them.
